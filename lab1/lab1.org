@@ -1,0 +1,13 @@
+#+title: Laboratory work 1
+#+course: Formal Languages & Finite Automata
+#+author: Andrei Chicu
+
+** Theory
+
+** Objectives
+
+** Implementation Description
+
+** Results & Conclusions
+
+** References
