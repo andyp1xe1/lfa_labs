@@ -1,4 +1,4 @@
 #+title: Laboratory works for LFA course
 
 ** Index:
-*** [[https:/lfa_labs/tree/main/lab1][lab1]]
+*** [[https:/andyp1xe1/lfa_labs/tree/main/lab1][lab1]]
