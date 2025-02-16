@@ -9,7 +9,7 @@ example:
 
 $$ \Sigma = \set{0, 1} \text{ binary alphabet} $$
 
-$$ \Sigma = \{ a, b, \dots, z \} \text{ the set of lowercase letters} $$
+$$ \Sigma = \set{ a, b, \dots, z } \text{ the set of lowercase letters} $$
 
 ### Grammar
 
@@ -32,7 +32,7 @@ $$V_N \cap V_T = \emptyset $$
 
 A production is the set of rules a grammar follows. It is defined as:
 
-$$ P = \{ \alpha \to \beta \mid \alpha, \beta \in (V_{N} \cup V_{T})^*, \alpha \ne \epsilon \} $$
+$$ P = \set{ \alpha \to \beta \mid \alpha, \beta \in (V_{N} \cup V_{T})^*, \alpha \ne \epsilon } $$
 
 ### Deterministic Finite Automata
 
@@ -60,17 +60,17 @@ Algorithm:
 
 1.  $V_N = Q$
 2.  $V_T = \Sigma$
-3.  $S = \{q_0\}$
+3.  $S = \set{q_0}$
 4.  For production $P$:
     - $P = \emptyset$
     - For all values:  
       $\delta(q, a) = (q_1, q_2, \dots, q_m)$
       we have  
-      $P = P\cup \{ q \rightarrow aq_i \mid  i = 1\dots m \}$
+      $P = P\cup \set{ q \rightarrow aq_i \mid  i = 1\dots m }$
     - for the values with  
-      $F \cap \{ q_1, q_2, \dots, q_m\} \neq \emptyset$
+      $F \cap \set{ q_1, q_2, \dots, q_m} \neq \emptyset$
       we have  
-      $P = P\cup \{q \rightarrow a\}$
+      $P = P\cup \set{q \rightarrow a}$
 
 ## Objectives
 
