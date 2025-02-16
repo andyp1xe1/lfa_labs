@@ -62,23 +62,15 @@ Algorithm:
 2.  $V_T = \Sigma$
 3.  $S = \{q_0\}$
 4.  For production $P$:
-
-- $P = \emptyset$
-- For all values:
-
-$$ \delta(q, a) = (q_1, q_2, \dots, q_m) $$
-
-we have
-
-$$ P = P\cup \{ q \rightarrow aq_i \mid  i = 1\dots m \} $$
-
-- for the values with
-
-$$ F \cap \{ q_1, q_2, \dots, q_m\} \neq \emptyset $$
-
-we have
-
-$$ P = P\cup \{q \rightarrow a\} $$
+    - $P = \emptyset$
+    - For all values:  
+      $\delta(q, a) = (q_1, q_2, \dots, q_m)$
+      we have  
+      $P = P\cup \{ q \rightarrow aq_i \mid  i = 1\dots m \}$
+    - for the values with  
+      $F \cap \{ q_1, q_2, \dots, q_m\} \neq \emptyset$
+      we have  
+      $P = P\cup \{q \rightarrow a\}$
 
 ## Objectives
 
