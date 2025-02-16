@@ -5,14 +5,15 @@
 ### Alphabet
 
 A finite nonempty set of symbols. By convention denoted as $\Sigma$. For
-example:
+example:\
 $$ \Sigma = \{0, 1\} \text{ binary alphabet} $$
+
 $$ \Sigma = \{ a, b, \dots, z \} \text{the set of lowercase letters} $$
 
 ### Grammar
 
 A grammar is what defines the rules of a language, it is defined as a 5
-sized toople:
+sized toople:\
 $$ G = (V_{N}, V_{T}, P, S) $$
 where:
 - $V_{N}$ a finite set of *non-terminal symbols*  
@@ -25,12 +26,12 @@ $$V_N \cap V_T = \emptyset $$
 
 ### Production
 
-A production is the set of rules a grammar follows. It is defined as:
+A production is the set of rules a grammar follows. It is defined as:\
 $$ P = \{ \alpha \to \beta \mid \alpha,\, \beta \in (V_{N} \cup V_{T})^*,\, \alpha \ne \epsilon \} $$
 
 ### Deterministic Finite Automata
 
-A 5-tuple:
+A 5-tuple:\
 $$ DFA = (Q, \Sigma, \delta, q_{0}, F) $$
 where:
 - $Q$ - a finite set of states $\Sigma$ - an alphabet  
@@ -55,13 +56,13 @@ Algorithm:
 3.  $S = \{q_0\}$
 4.  For production $P$:
     - $P = \emptyset $
-    - For all values:
+    - For all values:\
       $$ \delta(q, a) = (q_1, q_2, \dots, q_m) $$
-      we have
+      we have\
       $$ P = P\cup \{ q \rightarrow aq_i \mid  i = 1\dots m \} $$
-    - for the values with 
+    - for the values with\
       $$ F \cap \{ q_1, q_2, \dots, q_m\} \neq \emptyset $$
-      we have
+      we have\
       $$ P = P\cup \{q \rightarrow a\} $$
 
 ## Objectives
