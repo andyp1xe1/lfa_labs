@@ -6,11 +6,10 @@
 *** Alphabet
 A finite nonempty set of symbols. By convention denoted as \(\Sigma\).
 For example:
-\begin{align}
-\label{eq:6}
+$$
 \Sigma &= \{0, 1\} \text{ binary alphabet} \\
 \Sigma &= \{ a, b, \dots, z \} \text{the set of lowercase letters}
-\end{align}
+$$
 *** Grammar
 A grammar is what defines the rules of a language, it is defiend as a 5 sized toople:
 \[ G = (V_{N}, V_{T}, P, S) \]
