@@ -42,7 +42,7 @@ $$ DFA = (Q, \Sigma, \delta, q_{0}, F) $$
 
 where:
 - $Q$ - a finite set of states $\Sigma$ - an alphabet
-- $ \delta : Q \times \Sigma \rightarrow Q $ (a transition function)
+- $\delta : Q \times \Sigma \rightarrow Q$ (a transition function)
 - $q_{0} \in Q$ - the initial state $F \subset Q$ - a set of accepting/final states
 
 ### Language of a DFA
@@ -53,8 +53,8 @@ left to right and reach some accepting/final state.
 
 ### Equivalence of DFA with Regular Grammar
 
-For the given $DFA = (Q, \Sigma, \delta, q_0, F) $ can be obtained an
-equivalent regular grammar $G = (V_N, V_T, P, S) $.
+For the given $DFA = (Q, \Sigma, \delta, q_0, F)$ can be obtained an
+equivalent regular grammar $G = (V_N, V_T, P, S)$.
 
 Algorithm:
 
@@ -62,22 +62,23 @@ Algorithm:
 2.  $V_T = \Sigma$
 3.  $S = \{q_0\}$
 4.  For production $P$:
-    - $P = \emptyset $
-    - For all values:
 
-      $$ \delta(q, a) = (q_1, q_2, \dots, q_m) $$
+- $P = \emptyset$
+- For all values:
 
-      we have
+$$ \delta(q, a) = (q_1, q_2, \dots, q_m) $$
 
-      $$ P = P\cup \{ q \rightarrow aq_i \mid  i = 1\dots m \} $$
+we have
 
-    - for the values with
+$$ P = P\cup \{ q \rightarrow aq_i \mid  i = 1\dots m \} $$
 
-      $$ F \cap \{ q_1, q_2, \dots, q_m\} \neq \emptyset $$
+- for the values with
 
-      we have
+$$ F \cap \{ q_1, q_2, \dots, q_m\} \neq \emptyset $$
 
-      $$ P = P\cup \{q \rightarrow a\} $$
+we have
+
+$$ P = P\cup \{q \rightarrow a\} $$
 
 ## Objectives
 
