@@ -7,7 +7,7 @@
 A finite nonempty set of symbols. By convention denoted as $\Sigma$. For
 example:
 
-$$ \Sigma = {0, 1} \text{ binary alphabet} $$
+$$ \Sigma = \set{0, 1} \text{ binary alphabet} $$
 
 $$ \Sigma = \{ a, b, \dots, z \} \text{ the set of lowercase letters} $$
 
