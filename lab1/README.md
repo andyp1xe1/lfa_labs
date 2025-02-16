@@ -9,7 +9,7 @@ example:
 
 $$ \Sigma = \{0, 1\} \text{ binary alphabet} $$
 
-$$ \Sigma = \{ a, b, \dots, z \} \text{the set of lowercase letters} $$
+$$ \Sigma = \{ a, b, \dots, z \} \text{ the set of lowercase letters} $$
 
 ### Grammar
 
@@ -30,9 +30,9 @@ $$V_N \cap V_T = \emptyset $$
 
 ### Production
 
-A production is the set of rules a grammar follows. It is defined as:\
+A production is the set of rules a grammar follows. It is defined as:
 
-$$ P = \{ \alpha \to \beta \mid \alpha,\, \beta \in (V_{N} \cup V_{T})^*,\, \alpha \ne \epsilon \} $$
+$$ P = \{ \alpha \to \beta \mid \alpha, \beta \in (V_{N} \cup V_{T})^*, \alpha \ne \epsilon \} $$
 
 ### Deterministic Finite Automata
 
