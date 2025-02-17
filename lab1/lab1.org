@@ -74,10 +74,3 @@ Algorithm:
     P = P\cup \{q \rightarrow a\}
     \]
 
-** Objectives
-
-** Implementation Description
-
-** Results & Conclusions
-
-** References
