@@ -256,7 +256,7 @@ For the *delta* function I have used a "bidimentional" map, representing the tra
 And my `setState` type, since golang lacks sets :(
 The trick is to use a map with boolean values. The keys of the map act as the unique values.
 
-```
+```go
 type setState map[string]bool
 
 func NewSetState(states ...State) setState {
@@ -444,8 +444,9 @@ go run . &&
 
 Here are the results:
 ![./img/result.png]
-And the graph of the resulting DFA:
+And the graph of the resulting DFA and NFA:
 ![./dfa.png]
+![./nfa.png]
 
 ### Conclusion
 

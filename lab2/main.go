@@ -51,8 +51,11 @@ func main() {
 	nfaG := nfa.ToGrammar()
 	nfaG.Print()
 
-	err := dfa.ToDOT("dfa.dot")
-	if err != nil {
+	if err := dfa.ToDOT("dfa.dot"); err != nil {
+		fmt.Println(err)
+	}
+
+	if err := nfa.ToDOT("nfa.dot"); err != nil {
 		fmt.Println(err)
 	}
 }
