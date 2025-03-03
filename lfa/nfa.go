@@ -231,9 +231,9 @@ func (n *NFA) ToGrammar() *Grammar {
 		}
 	}
 
-	// for _, finalState := range n.F {
-	// 	grammar.P[finalState] = append(grammar.P[finalState], "")
-	// }
+	for _, finalState := range n.F {
+		grammar.P[finalState] = append(grammar.P[finalState], "eps")
+	}
 
 	return grammar
 }

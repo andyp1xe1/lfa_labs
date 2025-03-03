@@ -3,6 +3,7 @@ package lfa
 import (
 	"fmt"
 	"math/rand"
+	"strings"
 )
 
 var (
@@ -25,6 +26,19 @@ func NewGrammarV5() *Grammar {
 		Vt: []byte{'a', 'b', 'c', 'd'},
 		P: map[NonTerminal][]string{
 			"S": {"bS", "aF", "d"},
+			"F": {"cF", "dF", "aL", "b"},
+			"L": {"aL", "c"},
+		},
+	}
+}
+
+func NewGrammarV51() *Grammar {
+	return &Grammar{
+		S:  "S",
+		Vn: []NonTerminal{"S", "F", "L"},
+		Vt: []byte{'a', 'b', 'c', 'd'},
+		P: map[NonTerminal][]string{
+			"S": {"Sb", "aF", "d"},
 			"F": {"cF", "dF", "aL", "b"},
 			"L": {"aL", "c"},
 		},
@@ -90,9 +104,12 @@ func (g *Grammar) ToDFA() *DFA {
 }
 
 func (g *Grammar) Print() {
-	fmt.Println("Grammar:")
 	fmt.Println("Start: ", g.S)
-	fmt.Println("Terminals: ", string(g.Vt))
+	str := make([]string, 0)
+	for _, t := range g.Vt {
+		str = append(str, string(t))
+	}
+	fmt.Println("Terminals: ", strings.Join(str, " "))
 	fmt.Println("Nonterminals: ", g.Vn)
 
 	fmt.Println("Production Rules:")
