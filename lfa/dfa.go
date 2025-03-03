@@ -87,3 +87,24 @@ func (d *DFA) Accept(s string) bool {
 
 	return contains(d.F, q)
 }
+
+func (d *DFA) ToGrammar() *Grammar {
+	grammar := &Grammar{
+		Vn: d.Q,
+		Vt: d.Sigma,
+		P:  make(map[State][]string),
+		S:  d.Q0,
+	}
+
+	for state, transitions := range d.Delta {
+		for symbol, nextState := range transitions {
+			grammar.P[state] = append(grammar.P[state], string(symbol)+nextState)
+		}
+	}
+
+	// for _, finalState := range d.F {
+	// 	grammar.P[finalState] = append(grammar.P[finalState], "")
+	// }
+
+	return grammar
+}

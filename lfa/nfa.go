@@ -1,10 +1,8 @@
 package lfa
 
 import (
-	"fmt"
 	"sort"
 	"strings"
-	"time"
 )
 
 type DeltaNfa map[State]map[byte]setState
@@ -90,9 +88,44 @@ func NewNFA(Q []State, Sigma []byte, Delta DeltaNfa, Q0 []State, F []State) *NFA
 	return nfa
 }
 
+func (n *NFA) IsDFA() bool {
+
+	for _, transitions := range n.Delta {
+		symbolsSeen := make(map[byte]bool)
+
+		for symbol, destinations := range transitions {
+			if symbolsSeen[symbol] {
+				return false
+			}
+			symbolsSeen[symbol] = true
+
+			if len(destinations) != 1 {
+				return false
+			}
+		}
+
+		for _, symbol := range n.Sigma {
+			if !symbolsSeen[symbol] {
+				return false
+			}
+		}
+	}
+
+	for _, state := range n.Q {
+		if _, exists := n.Delta[state]; !exists {
+			return false
+		}
+	}
+
+	return true
+}
+
 func (n *NFA) ToDFA() *DFA {
 	nfaQueue := newNFAQueue()
 	deltaPrime := make(DeltaDFA)
+
+	qPrime := make([]State, 0)
+	fPrime := make([]State, 0)
 
 	q0 := make(setState)
 	for _, q := range n.Q0 {
@@ -100,41 +133,42 @@ func (n *NFA) ToDFA() *DFA {
 	}
 
 	nfaQueue.enqueue(q0)
-
-	qPrime := make([]State, 0)
-	fPrime := make([]State, 0)
+	qPrime = append(qPrime, q0.toState())
 
 	for !nfaQueue.done() {
 		currentSetState := nfaQueue.dequeue()
-		fmt.Println("curr: ", currentSetState)
-		time.Sleep(200 * time.Millisecond)
+		//fmt.Println("curr: ", currentSetState)
+		//time.Sleep(200 * time.Millisecond)
+
+		for _, f := range n.F {
+			if currentSetState[f] {
+				fPrime = append(fPrime, currentSetState.toState())
+				break
+			}
+		}
+		//fmt.Println("Appended to final: ", currentSetState.toState())
+
 		for _, r := range n.Sigma {
 			out := make(setState)
 			for state := range currentSetState {
-				fmt.Printf("\tcurr2: (%v, %s); ", state, string(r))
+				//fmt.Printf("\tcurr2: (%v, %s); ", state, string(r))
 				if nextStates := n.Delta.Lookup(state, r); nextStates != nil {
-					fmt.Println("adding: ", nextStates)
+					//fmt.Println("adding: ", nextStates)
 					out.Union(nextStates)
 				} else {
-					fmt.Println()
+					//fmt.Println()
 				}
 			}
 
 			if len(out) > 0 {
 				if !nfaQueue.wasProcessed(out) {
-					fmt.Println("enqueuing new state: ", out)
+					//fmt.Println("enqueuing new state: ", out)
 					nfaQueue.enqueue(out)
 					qPrime = append(qPrime, out.toState())
 				}
 
 				deltaPrime.Add(currentSetState.toState(), r, out.toState())
-				fmt.Printf("Registered: %v %v %v\n", currentSetState.toState(), string(r), out.toState())
-				for _, f := range n.F {
-					if currentSetState[f] {
-						fPrime = append(fPrime, currentSetState.toState())
-						break
-					}
-				}
+				//fmt.Printf("Registered: %v %v %v\n", currentSetState.toState(), string(r), out.toState())
 			}
 		}
 	}
@@ -179,4 +213,27 @@ func (n nfaQueue) done() bool {
 	// 		return false
 	// 	}
 	// }
+}
+
+func (n *NFA) ToGrammar() *Grammar {
+	grammar := &Grammar{
+		Vn: n.Q,
+		Vt: n.Sigma,
+		P:  make(map[State][]string),
+		S:  n.Q0[0],
+	}
+
+	for state, transitions := range n.Delta {
+		for symbol, nextStates := range transitions {
+			for nextState := range nextStates {
+				grammar.P[state] = append(grammar.P[state], string(symbol)+nextState)
+			}
+		}
+	}
+
+	// for _, finalState := range n.F {
+	// 	grammar.P[finalState] = append(grammar.P[finalState], "")
+	// }
+
+	return grammar
 }

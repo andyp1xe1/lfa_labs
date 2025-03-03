@@ -72,6 +72,54 @@ Algorithm:
       we have  
       $P = P\cup \set{q \rightarrow a}$
 
+### NFA to DFA
+for every NFA there is a DFA. we do this by tracking "configurations of states" of the NFA in a new nfa.
+
+The algorithm is as follows:
+
+1. **Initialize** a queue (`nfaQueue`) to track unprocessed NFA state sets and create empty DFA components (`deltaPrime`, `qPrime`, `fPrime`).  
+2. **Start state**: Convert the NFA’s start states into a single DFA state and enqueue it.  
+3. **Process states**: While there are unprocessed sets, dequeue a state set and check if it contains a final NFA state (add it to `fPrime` if so).  
+4. **Transition mapping**: For each symbol in the alphabet, compute the union of reachable NFA states, forming a new DFA state.  
+5. **Enqueue new states**: If the computed state set is new, enqueue it and add it to `qPrime`.  
+6. **Update DFA transitions (`deltaPrime`)** to map the current DFA state to the new state on the given symbol.  
+7. **Repeat** until all reachable NFA states are processed, then return the constructed DFA.
+
+### Grammar types
+The **Chomsky Hierarchy** classifies grammars into four types based on their production rules:  
+
+#### **1. Type 0: Recursively Enumerable Grammar (Unrestricted)**
+   - **Most powerful** grammar type.
+   - Productions: **Any form** (e.g., `α → β`, where `α` and `β` are strings of terminals & non-terminals).
+   - **Can generate any language a Turing machine can recognize**.
+   - Example: `AB → BCaB`  
+
+#### **2. Type 1: Context-Sensitive Grammar (CSG)**
+   - Productions: **Left-hand side (LHS) must be at most as long as the right-hand side (RHS)** (`|α| ≤ |β|` in `α → β`).
+   - **Can be recognized by a Linear Bounded Automaton (LBA)**.
+   - Example: `AB → ABC`  
+
+#### **3. Type 2: Context-Free Grammar (CFG)**
+   - Productions: **Single non-terminal on LHS** (`A → β`).
+   - **Recognized by a Pushdown Automaton (PDA)**.
+   - Used in **programming languages** and **compilers**.
+   - Example: `S → aSb | ε`  
+
+#### **4. Type 3: Regular Grammar**
+   - Productions: **LHS is a single non-terminal, RHS is a terminal followed by at most one non-terminal** (`A → aB` or `A → a`).
+   - **Recognized by Finite Automata (FA)**.
+   - Used for **lexical analysis (regex, DFA, NFA)**.
+   - Example: `S → aS | b`  
+
+
+#### **Hierarchy:**
+```
+Type 0 ⊇ Type 1 ⊇ Type 2 ⊇ Type 3
+```
+- **Every Regular Language is Context-Free**.
+- **Every Context-Free Language is Context-Sensitive**.
+- **Every Context-Sensitive Language is Recursively Enumerable**.
+
 
 ## Objectives
 
@@ -95,12 +143,48 @@ Algorithm:
 
     d. For the Finite Automaton, please add a method that checks if an input string can be obtained via the state transition from it;
 
+
+## Objectives:
+1. Understand what an automaton is and what it can be used for.
+
+2. Continuing the work in the same repository and the same project, the following need to be added:
+    a. Provide a function in your grammar type/class that could classify the grammar based on Chomsky hierarchy.
+
+    b. For this you can use the variant from the previous lab.
+
+3. According to your variant number (by universal convention it is register ID), get the finite automaton definition and do the following tasks:
+
+    a. Implement conversion of a finite automaton to a regular grammar.
+
+    b. Determine whether your FA is deterministic or non-deterministic.
+
+    c. Implement some functionality that would convert an NDFA to a DFA.
+    
+    d. Represent the finite automaton graphically (Optional, and can be considered as a __*bonus point*__):
+      
+    - You can use external libraries, tools or APIs to generate the figures/diagrams.
+        
+    - Your program needs to gather and send the data about the automaton and the lib/tool/API return the visual representation.
+
 ## Implementation
 
 My variant is
 
 ```
 Variant 5:
+
+NFA:
+Q = {q0,q1,q2,q3},
+Sigma = {a,b},
+F = {q3},
+delta(q0,a) = q1,
+delta(q0,b) = q0,
+delta(q1,a) = q2,
+delta(q1,a) = q3,
+delta(q2,a) = q3,
+delta(q2,b) = q0.
+
+Previous lab grammar:
 VN={S, F, L},
 VT={a, b, c, d},
 P={
@@ -116,196 +200,255 @@ P={
 }
 ```
 
-I chose Golang as the language, since I am most familiar with it at the moment, it is fast, and it has all the primitives I need for such a task: maps, lists, "methods" etc, while also being simple and not getting in my way with opinions on how classes should be done (there are no classes)
+I continued to use golang for this lab work, naively thinking it would be easy to do so. Implementing the FA was especially chalanging due to the limitations of golang's type system. Since a DFA delta function and NFA delta function are not symmetric types. This blocked my progress for a while. In the end I chose to implement a separate nfa type, and ditch the idea of interfaces and generics.
 
-### The Structs
+### The New Structs
 
-For the grammar and the DFA, I implemented structs closely to the definition in the theory.
+For the NFA implementation I needed:
 
-The grammar struct:
 
 ```go
-type Grammar struct {
-	vn []string
-	vt []string
-	p  map[string][]string
+type NFA struct {
+	Q     []State
+	Sigma []byte
+	Delta DeltaNfa
+	Q0    []State
+	F     []State
 }
 
-func NewGrammar() *Grammar {
-	return &Grammar{
-		vn: []string{"S", "F", "L"},
-		vt: []string{"a", "b", "c", "d"},
-		p: map[string][]string{
-			"S": {"bS", "aF", "d"},
-			"F": {"cF", "dF", "aL", "b"},
-			"L": {"aL", "c"},
-		},
+func NewNFA(Q []State, Sigma []byte, Delta DeltaNfa, Q0 []State, F []State) *NFA {
+
+	nfa := &NFA{
+		Q:     Q,
+		Sigma: Sigma,
+		Delta: Delta,
+		Q0:    Q0,
+		F:     F,
 	}
+
+	return nfa
 }
 ```
 
-and the DFA struct:
+and the other types that the NFA needs like the delta:
 
 ```go
-type DFA struct {
-	Q     []string
-	Sigma []string
-	delta map[string]map[string]string
-	q0    string
-	F     string
+type DeltaNfa map[State]map[byte]setState
+
+func (d DeltaNfa) Add(in State, r byte, out setState) {
+	if _, ok := d[in]; !ok {
+		d[in] = make(map[byte]setState)
+	}
+	d[in][r] = out
 }
 
-func NewDFA() *DFA {
-	dfa := &DFA{
-		Q:     make([]string, 0),
-		Sigma: make([]string, 0),
-		delta: make(map[string]map[string]string),
-		q0:    "S",
-		F:     "X",
+func (d DeltaNfa) Lookup(in State, r byte) setState {
+	if q, ok := d[in]; !ok {
+		return nil
+	} else {
+		return q[r]
 	}
-	dfa.Q = append(dfa.Q, dfa.q0)
-	dfa.Q = append(dfa.Q, dfa.F)
-
-	return dfa
 }
 ```
 
 For the *delta* function I have used a "bidimentional" map, representing the transitions in the form of a map of maps. The key of the outer map is the state, and the key of the inner map is the symbol. The value of the inner map is the state it transitions to. This allows for fast lookups and validations.
 
-### The Methods
+And my `setState` type, since golang lacks sets :(
+The trick is to use a map with boolean values. The keys of the map act as the unique values.
 
-First, the grammar has a method that converts itself to a DFA.
-It implememnts the algorithm from the theory in the most straightforward way possible.
-It assingns the states to the `Q` list, symbols to the `Sigma` list, and the transitions to the `delta` map.
-Additionally it constructs the final state transitions:
+```
+type setState map[string]bool
+
+func NewSetState(states ...State) setState {
+	s := make(setState)
+	for _, state := range states {
+		s[state] = true
+	}
+	return s
+}
+
+func (s setState) toState() State {
+	buff := make([]string, 0)
+	for q := range s {
+		buff = append(buff, q)
+	}
+
+	sort.Slice(buff, func(i, j int) bool {
+		return buff[i] < buff[j]
+	})
+
+	return "{" + strings.Join(buff, ",") + "}"
+}
+
+func (s setState) Add(state State) {
+	s[state] = true
+}
+
+func (s setState) Union(s2 setState) {
+	for k := range s2 {
+		s[k] = true
+	}
+}
+
+func (s setState) Equals(s2 setState) bool {
+	if len(s) != len(s2) {
+		return false
+	}
+	for k := range s {
+		if _, ok := s2[k]; !ok {
+			return false
+		}
+	}
+	return true
+}
+```
+
+### The ToDFA function
+
+This is the meat of the lab. Here we implement the algorithm defined above:
 
 ```go
-func (g *Grammar) ToDFA() *DFA {
-	dfa := NewDFA()
+func (n *NFA) ToDFA() *DFA {
+	nfaQueue := newNFAQueue()
+	deltaPrime := make(DeltaDFA)
 
-	dfa.Sigma = append(dfa.Sigma, g.vt...)
-	dfa.Q = append(dfa.Q, g.vn...)
+	qPrime := make([]State, 0)
+	fPrime := make([]State, 0)
 
-	for k, v := range g.p {
-		dfa.delta[k] = make(map[string]string)
+	q0 := make(setState)
+	for _, q := range n.Q0 {
+		q0.Add(q)
+	}
 
-		for _, s := range v {
-			if len(s) == 1 {
-				dfa.delta[k][string(s[0])] = dfa.F
-				continue
+	nfaQueue.enqueue(q0)
+	qPrime = append(qPrime, q0.toState())
+
+	for !nfaQueue.done() {
+		currentSetState := nfaQueue.dequeue()
+
+		for _, f := range n.F {
+			if currentSetState[f] {
+				fPrime = append(fPrime, currentSetState.toState())
+				break
+			}
+		}
+
+		for _, r := range n.Sigma {
+			out := make(setState)
+			for state := range currentSetState {
+				if nextStates := n.Delta.Lookup(state, r); nextStates != nil {
+					out.Union(nextStates)
+				} 
 			}
 
-			dfa.delta[k][string(s[0])] = string(s[1])
+			if len(out) > 0 {
+				if !nfaQueue.wasProcessed(out) {
+					nfaQueue.enqueue(out)
+					qPrime = append(qPrime, out.toState())
+				}
+
+				deltaPrime.Add(currentSetState.toState(), r, out.toState())
+			}
 		}
 	}
 
-	return dfa
+	return NewDFA(qPrime, n.Sigma, deltaPrime, q0.toState(), fPrime)
 }
 ```
 
-Then, the DFA has a method that checks if the input string can be obtained via the state transition from it.
-It iterates through the string, and checks if the current state has a transition to the next symbol.
-If the current state has a transition to the next symbol, it updates the current state to the next state.
-If the current state does not have a transition to the next symbol, it returns false.
-At the end, if the current state is the final state, it returns true.
+The queue here is a queue that keeps track if elements have been queued/ "processed" before.
 
 ```go
-func (d *DFA) Accept(s string) bool {
-	var ok bool
-	q := d.q0
+type nfaQueue struct {
+	queue []setState
+	reg   map[string]bool
+}
 
-	for _, r := range s {
-
-		if !contains(d.Sigma, string(r)) {
-			log.Printf("Symbol %s not in Sigma", string(r))
-			return false
-		}
-
-		if _, ok = d.delta[q]; !ok {
-			log.Printf("State %s does not have outgoing transitions", q)
-			return false
-		}
-
-		q, ok = d.delta[q][string(r)]
-		if !ok {
-			log.Printf("q = %s, r = %s", q, string(r))
-			return false
-		}
+func newNFAQueue() nfaQueue {
+	return nfaQueue{
+		queue: make([]setState, 0),
+		reg:   make(map[string]bool),
 	}
+}
 
-	return q == d.F
+func (n nfaQueue) wasProcessed(s setState) bool {
+	return n.reg[s.toState()]
+}
+
+func (n *nfaQueue) enqueue(s setState) {
+	if !n.wasProcessed(s) {
+		n.queue = append(n.queue, s)
+	}
+	n.reg[s.toState()] = true
+}
+
+func (n *nfaQueue) dequeue() setState {
+	res := n.queue[0]
+	n.queue = n.queue[1:]
+	return res
+}
+
+func (n nfaQueue) done() bool {
+	return len(n.queue) == 0
+
+	// for _, q := range n.queue {
+	// 	if !n.reg[q.toState()] {
+	// 		return false
+	// 	}
+	// }
 }
 ```
 
-### Testing
-
-In order to test my implememnation, I first need a a way to randomly generate strings from the grammar:
-
+Finally, to visualize the result with graphviz:
 ```go
-func (g *Grammar) GetUniqueRandomWord() string {
-	word := ""
-	for {
-		word = g.getRandomWord()
+func (d *DFA) ToDOT(filename string) error {
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
 
-		if _, ok := uniqueWords[word]; !ok {
-			uniqueWords[word] = true
-			return word
+	fmt.Fprintln(file, "digraph DFA {")
+	fmt.Fprintln(file, "  rankdir=LR;")
+	fmt.Fprintln(file, "  node [shape=circle];")
+
+	// Mark final states
+	for _, f := range d.F {
+		fmt.Fprintf(file, "  \"%s\" [shape=doublecircle];\n", f)
+	}
+
+	// Mark initial state
+	fmt.Fprintf(file, "  \"\" [shape=none];\n")
+	fmt.Fprintf(file, "  \"\" -> \"%s\";\n", d.Q0)
+
+	// Add transitions
+	for state, trans := range d.Delta {
+		for symbol, nextState := range trans {
+			fmt.Fprintf(file, "  \"%s\" -> \"%s\" [label=\"%c\"];\n", state, nextState, symbol)
 		}
 	}
-}
 
-func (g *Grammar) getRandomWord() string {
-	word := ""
-	vn := g.vn[0]
-
-	for {
-		sufArr := g.p[vn]
-		suf := sufArr[rand.Intn(len(sufArr))]
-
-		if len(suf) == 1 {
-			word += string(suf[0])
-			return word
-		}
-
-		word += string(suf[0])
-		vn = string(suf[1])
-	}
-}
-```
-
-Then, to the test:
-
-```go
-func TestRandomWordsAccepted(t *testing.T) {
-	g := NewGrammar()
-	d := g.ToDFA()
-
-	randWords := make([]string, 0)
-	for i := 0; i < 10; i++ {
-		randWords = append(randWords, g.GetUniqueRandomWord())
-	}
-	t.Log("Random words: ", randWords)
-
-	for _, w := range randWords {
-		if d.Accept(w) {
-			t.Log("word: ", w, " Accepted")
-		} else {
-			t.Fatal("word: ", w, " Rejected")
-		}
-	}
+	fmt.Fprintln(file, "}")
+	return nil
 }
 ```
-
-Here I have tested the algorithm with 10 random words, and checked if they are accepted by the DFA.
+this then is converted to an image:
+```bash
+#!/bin/sh
+go run . &&
+  dot -Tpng dfa.dot -o dfa.png &&
+  nsxiv dfa.png
+```
 
 ### Results:
 
-Here are the results of running the tests:
-
-![results](./img/results.png)
+Here are the results:
+![./img/result.png]
+And the graph of the resulting DFA:
+![./dfa.png]
 
 ### Conclusion
 
-In conclusion I can say that I don't regret my choice of using Go, as it allowed me to itarate fast and test my implementation without having to rely on external tools.
+In conclusion I can say that Go was not the right tool for the job. I had to implement many things to compensate for the missing features of the language. Also, I am pretty sure a functional language would've been much more suitable for this laboratory.
 
-Additionally, I enjoyed learning and understanding more concretely what a State Machine is, and I definitely see its usecases.
+Despite hardships, I still enjoyed working on this laboratory. It proved to be a nice exercise for implementing seemingly simple algorithms (NFA to DFA) in concrete code. When it comes to writing code there always are nuances to keep account of, even more so compared to mathematical formulas/algorithms where the input/output types are not very strict.

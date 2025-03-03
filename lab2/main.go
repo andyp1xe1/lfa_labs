@@ -20,7 +20,6 @@ func main() {
 	g := lfa.NewGrammarV5()
 	separator()
 	fmt.Println("grammar type of v5: ", g.ClassifyGrammar())
-	separator()
 
 	q0, q1, q2, q3 := "q0", "q1", "q2", "q3"
 	Q := []lfa.State{q0, q1, q2, q3}
@@ -41,6 +40,7 @@ func main() {
 	dfa := nfa.ToDFA()
 
 	separator()
+	fmt.Println("The resulted DFA:")
 	printDFA(dfa)
 
 	separator()

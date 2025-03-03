@@ -1,6 +1,7 @@
 package lfa
 
 import (
+	"fmt"
 	"math/rand"
 )
 
@@ -8,7 +9,6 @@ var (
 	uniqueWords = make(map[string]bool, 0)
 )
 
-// NonTerminal implements the State interface
 type NonTerminal = string
 
 type Grammar struct {
@@ -62,7 +62,7 @@ func (g *Grammar) GetUniqueRandomWord() string {
 }
 
 func (g *Grammar) ToDFA() *DFA {
-	var finalState NonTerminal = "X"
+	finalState := "X"
 
 	q := make([]State, 0)
 	delta := make(DeltaDFA)
@@ -87,4 +87,18 @@ func (g *Grammar) ToDFA() *DFA {
 
 	dfa := NewDFA(q, g.Vt, delta, g.S, []State{finalState})
 	return dfa
+}
+
+func (g *Grammar) Print() {
+	fmt.Println("Grammar:")
+	fmt.Println("Start: ", g.S)
+	fmt.Println("Terminals: ", string(g.Vt))
+	fmt.Println("Nonterminals: ", g.Vn)
+
+	fmt.Println("Production Rules:")
+	for state, rules := range g.P {
+		for _, rule := range rules {
+			fmt.Printf("%s → %s\n", state, rule)
+		}
+	}
 }
