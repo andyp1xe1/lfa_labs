@@ -121,29 +121,6 @@ Type 0 ⊇ Type 1 ⊇ Type 2 ⊇ Type 3
 - **Every Context-Sensitive Language is Recursively Enumerable**.
 
 
-## Objectives
-
-1. Discover what a language is and what it needs to have in order to be considered a formal one;
-
-2. Provide the initial setup for the evolving project that you will work on during this semester. You can deal with each laboratory work as a separate task or project to demonstrate your understanding of the given themes, but you also can deal with labs as stages of making your own big solution, your own project. Do the following:
-
-    a. Create GitHub repository to deal with storing and updating your project;
-
-    b. Choose a programming language. Pick one that will be easiest for dealing with your tasks, you need to learn how to solve the problem itself, not everything around the problem (like setting up the project, launching it correctly and etc.);
-
-    c. Store reports separately in a way to make verification of your work simpler (duh)
-
-3. According to your variant number, get the grammar definition and do the following:
-
-    a. Implement a type/class for your grammar;
-
-    b. Add one function that would generate 5 valid strings from the language expressed by your given grammar;
-
-    c. Implement some functionality that would convert and object of type Grammar to one of type Finite Automaton;
-
-    d. For the Finite Automaton, please add a method that checks if an input string can be obtained via the state transition from it;
-
-
 ## Objectives:
 1. Understand what an automaton is and what it can be used for.
 
@@ -159,12 +136,10 @@ Type 0 ⊇ Type 1 ⊇ Type 2 ⊇ Type 3
     b. Determine whether your FA is deterministic or non-deterministic.
 
     c. Implement some functionality that would convert an NDFA to a DFA.
-    
+
     d. Represent the finite automaton graphically (Optional, and can be considered as a __*bonus point*__):
-      
-    - You can use external libraries, tools or APIs to generate the figures/diagrams.
-        
-    - Your program needs to gather and send the data about the automaton and the lib/tool/API return the visual representation.
+        - You can use external libraries, tools or APIs to generate the figures/diagrams.
+        - Your program needs to gather and send the data about the automaton and the lib/tool/API return the visual representation.
 
 ## Implementation
 
@@ -230,7 +205,8 @@ func NewNFA(Q []State, Sigma []byte, Delta DeltaNfa, Q0 []State, F []State) *NFA
 }
 ```
 
-and the other types that the NFA needs like the delta:
+and the other types that the NFA needs like the delta.
+For the delta function, I went with a "bidimensional" map again. The first key is the state, the second key is the symbol, and the value is a set of states. This worked well for the NFA since multiple states can be reached from one transition. But it also meant I needed a separate DeltaNfa type with methods like Add() to add transitions and Lookup() to fetch the next states. This design made the conversion from NFA to DFA much easier to handle.
 
 ```go
 type DeltaNfa map[State]map[byte]setState
@@ -251,10 +227,9 @@ func (d DeltaNfa) Lookup(in State, r byte) setState {
 }
 ```
 
-For the *delta* function I have used a "bidimentional" map, representing the transitions in the form of a map of maps. The key of the outer map is the state, and the key of the inner map is the symbol. The value of the inner map is the state it transitions to. This allows for fast lookups and validations.
+For state representation, I made State an alias to string, thinking it would simplify things. Turns out, it mostly did, but it also meant I had to be extra careful when merging states during the NFA-to-DFA transformation. Since Go doesn’t have a built-in set type (why, Go?), I had to implement my own. The trick was to use a `map[string]bool`, where the keys are the actual state names, and the boolean values don’t really matter. This let me quickly check for membership, merge sets, and compare them without extra overhead.
 
-And my `setState` type, since golang lacks sets :(
-The trick is to use a map with boolean values. The keys of the map act as the unique values.
+The setState type needed some essential methods to be useful. Add() to insert elements, Union() to merge two sets, Equals() to compare sets, and toState() to convert a set of states into a single, sorted string representation. The last one was necessary to keep things deterministic, otherwise, different orderings of the same states would create duplicate DFA states.
 
 ```go
 type setState map[string]bool
@@ -305,7 +280,19 @@ func (s setState) Equals(s2 setState) bool {
 
 ### The ToDFA function
 
-This is the meat of the lab. Here we implement the algorithm defined above:
+To better handle the transition from an NFA to a DFA, I had to ensure that the `ToDFA` function correctly processed sets of states instead of single states, hence the distinct `setState` type.
+
+The algorithm from above:
+
+1. **Initialize** a queue (`nfaQueue`) to track unprocessed NFA state sets and create empty DFA components (`deltaPrime`, `qPrime`, `fPrime`).  
+2. **Start state**: Convert the NFA’s start states into a single DFA state and enqueue it.  
+3. **Process states**: While there are unprocessed sets, dequeue a state set and check if it contains a final NFA state (add it to `fPrime` if so).  
+4. **Transition mapping**: For each symbol in the alphabet, compute the union of reachable NFA states, forming a new DFA state.  
+5. **Enqueue new states**: If the computed state set is new, enqueue it and add it to `qPrime`.  
+6. **Update DFA transitions (`deltaPrime`)** to map the current DFA state to the new state on the given symbol.  
+7. **Repeat** until all reachable NFA states are processed, then return the constructed DFA.
+
+Here we implement the algorithm defined above:
 
 ```go
 func (n *NFA) ToDFA() *DFA {
@@ -355,6 +342,7 @@ func (n *NFA) ToDFA() *DFA {
 	return NewDFA(qPrime, n.Sigma, deltaPrime, q0.toState(), fPrime)
 }
 ```
+Speaking of conversion, managing the queue of unprocessed state sets was another chalange. I wrote an nfaQueue type that kept track of which sets had already been processed. Without it, the algorithm would end up reprocessing states, which would be both incorrect and inefficient. The queue had a couple of simple methods: enqueue() to add new sets, dequeue() to process them, and wasProcessed() to check if a set had already been seen.
 
 The queue here is a queue that keeps track if elements have been queued/ "processed" before.
 
@@ -399,7 +387,7 @@ func (n nfaQueue) done() bool {
 }
 ```
 
-Finally, to visualize the result with graphviz:
+Finally, to visualize the result with graphviz, I implemented a ToDOT() function to generate a Graphviz-compatible DOT file, which I then converted to an image using a shell script. This was super helpful in verifying that the generated DFA actually made sense.
 ```go
 func (d *DFA) ToDOT(filename string) error {
 	file, err := os.Create(filename)
@@ -443,10 +431,10 @@ go run . &&
 ### Results:
 
 Here are the results:
-![./img/result.png]
+![cli results](./img/result.png)
 And the graph of the resulting DFA and NFA:
-![./dfa.png]
-![./nfa.png]
+![dfa digraph](./dfa.png)
+![nfa digraph](./nfa.png)
 
 ### Conclusion
 
