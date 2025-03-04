@@ -430,11 +430,11 @@ go run . &&
 
 ### Results:
 
-Here are the results:
-![cli results](./img/result.png)
-And the graph of the resulting DFA and NFA:
-![dfa digraph](./dfa.png)
-![nfa digraph](./nfa.png)
+Here are the results:  
+![cli results](./img/result.png)  
+And the graph of the resulting DFA and NFA:  
+![dfa digraph](./dfa.png)  
+![nfa digraph](./nfa.png)  
 
 ### Conclusion
 
