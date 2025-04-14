@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Responsive Video Preview</title>
+	<style>
+		body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+		h1 { color: #333; }
+		.video-container { width: 100%; position: relative; }
+		video { width: 100%; display: block; }
+		.status { color: #666; margin: 10px 0; }
+	</style>
+</head>
+<body>
+	<h1>Responsive Video Preview</h1>
+	<div id="status" class="status">Connecting...</div>
+	<div class="video-container">
+		<video id="videoPlayer" controls preload="auto" src="/video">
+			Your browser does not support the video tag.
+		</video>
+	</div>
+
+	<script>
+		const videoPlayer = document.getElementById('videoPlayer');
+		const statusEl = document.getElementById('status');
+		let currentVersion = '';
+		let pendingUpdate = false;
+		
+		// Connect to Server-Sent Events
+		const evtSource = new EventSource('/events');
+		
+		// Function to refresh the video without reloading the element
+		function refreshVideo(version) {
+			// Remember playback state
+			const currentTime = videoPlayer.currentTime || 0;
+			const wasPlaying = !videoPlayer.paused && !videoPlayer.ended;
+			
+			// Save video element dimensions to maintain them during load
+			const videoWidth = videoPlayer.offsetWidth;
+			const videoHeight = videoPlayer.offsetHeight;
+			
+			// Update the video URL with cache busting parameter
+			const newSrc = '/video?v=' + version;
+			
+			// If the src is already set to this URL, use a different cache buster
+			if (videoPlayer.src.includes(newSrc)) {
+				videoPlayer.src = newSrc + '&t=' + Date.now();
+			} else {
+				videoPlayer.src = newSrc;
+			}
+			
+			// Force dimensions to avoid flickering
+			if (videoWidth && videoHeight) {
+				videoPlayer.style.width = videoWidth + 'px';
+				videoPlayer.style.height = videoHeight + 'px';
+			}
+			
+			// Function to restore playback state
+			const restorePlayback = function() {
+				// Only set time if we have a valid value
+				if (currentTime > 0 && currentTime < videoPlayer.duration) {
+					videoPlayer.currentTime = currentTime;
+				}
+				
+				// Restore play state if needed
+				if (wasPlaying) {
+					videoPlayer.play().catch(() => {});
+				}
+				
+				// Cleanup
+				videoPlayer.removeEventListener('canplay', restorePlayback);
+				pendingUpdate = false;
+				
+				// Reset any forced dimensions after playback is restored
+				setTimeout(() => {
+					videoPlayer.style.width = '';
+					videoPlayer.style.height = '';
+				}, 300);
+			};
+			
+			// Set up event listener for when video can play
+			videoPlayer.addEventListener('canplay', restorePlayback);
+			
+			// Update status
+			statusEl.textContent = 'Video updated: ' + new Date().toLocaleTimeString();
+		}
+		
+		// Handle version update events
+		evtSource.addEventListener('version', function(e) {
+			const version = e.data;
+			
+			// Process version update only if it's new and we're not already updating
+			if (version !== currentVersion && !pendingUpdate) {
+				currentVersion = version;
+				pendingUpdate = true;
+				
+				// Small delay to ensure file writing is complete
+				setTimeout(() => refreshVideo(version), 200);
+			}
+		});
+		
+		evtSource.onerror = function() {
+			statusEl.textContent = 'Connection lost. Reconnecting...';
+		};
+		
+		evtSource.onopen = function() {
+			statusEl.textContent = 'Connected. Waiting for video updates...';
+		};
+	</script>
+</body>
+</html>

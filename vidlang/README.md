@@ -1,149 +1,150 @@
-# Lexical Analysis for VidLang DSL
+# VidLang DSL
 
-## Theory and Implementation
+Our VidLang DSL offers a straightforward approach to video and audio manipulation, centered around a pipeline-oriented methodology. Programs written in our DSL consist of commands, which can be chained together using the familiar pipe operator (`|>`). Tracks, representing audio and video streams, serve as the primary data type. Our language facilitates variable assignment, list construction, and the creation of subexpressions, enabling complex and parameterized operations. The global `stream` variable stores the result of the most recent pipeline. The self-reference operator `*` enables the construction of mutable statements.
+
+```
+#!/bin/venv vidlang
+
+videoTrack, audioTrack := open "video.mp4"
+introVid, introAud := open "intro.mp4"
+outro, outroAud := open "outro.mp4"
+audioTrack |> volume 1.5
+
+# stream is a global variable representing the latest pipeline result
+
+audioTrack = [stream, *]
+		|> crossfade 0.5
+		|> pitch 1.5
+
+videoTrack =*
+    |> brightness 1.3
+    |> contrast 1.1
+
+audSequence := [introAud, audioTrack, outroAud]
+    |> map [i, el] ( el |> volume 0.5*i+1 )
+vidSequence :=  [intoVid, videoTrack, outro]
+trackline audSequence vidSequence
+# or trackline audSequence [introVid, videoTrack, outro]
+export "final.mp4"
+```
+
+## Specification and Analysis
+
+### DSL Grammar
+
+The structure of our VidLang DSL is formally defined using Extended Backus-Naur Form (EBNF):
+
+```ebnf
+program         = { statement } .
+statement       = assignment | expression .
+assignment      = identifierList ( ":=" | "=" ) expression .
+identifierList  = identifier { "," identifier } .
+expression      = assignable .
+assignable      = value [ ( NEWLINE )  "|>" pipeline ] .
+value           = list | simpleValue | mathExpr .
+simpleValue     = identifier | literal .
+literal         = STRING | NUMBER | BOOLEAN | SELF_STAR | STREAM .
+list            = "[" [ simpleValue { "," simpleValue } ] "]" [ subExpression ] .
+subExpression   = "[" identifierList "]" "(" assignable ")" .
+pipeline        = command { "|>" command } .
+command         = COMMAND_NAME [ argumentList ] .
+argumentList    = value { value } .
+mathExpr        = term .
+term            = factor { ( "+" | "-" ) factor } .
+factor          = primary { ( "*" | "/" ) primary } .
+primary         = identifier | NUMBER | "(" mathExpr ")" .
+identifier      = IDENTIFIER .
+
+```
+
+#### Lexical Elements
+
+*   `IDENTIFIER`: A sequence of alphanumeric characters, beginning with a letter.
+*   `STRING`: A sequence of characters enclosed in double quotes (`"`).
+*   `NUMBER`: A sequence of digits, possibly including a decimal point.
+*   `BOOLEAN`: `true` or `false`.
+*   `SELF_STAR`: `*`.
+*   `STREAM`: `stream`.
+*   `COMMAND_NAME`: Keywords designating specific video/audio manipulation commands (e.g., `open`, `volume`, `crossfade`).
+*   `NEWLINE`: A newline character (`\n`).
+
+#### Syntactic Structures
+
+*   **Program:** A sequence of statements.
+*   **Statement:** Either an assignment or an expression.
+*   **Assignment:** Assigns the result of an expression to one or more identifiers. Supports both declaration (`:=`) and assignment (`=`).
+*   **Expression:** An `assignable` element which can be chained into a `pipeline`.
+*   **Assignable**: Can be a `value` or `pipeline`.
+*   **Value:** A `list`, a `simpleValue`, or a `mathExpr`.
+*   **SimpleValue:** An `identifier` or a `literal`.
+*   **Literal:** A `STRING`, `NUMBER`, `BOOLEAN`, `SELF_STAR` or `STREAM`.
+*   **List:** An ordered collection of `simpleValue` elements enclosed in square brackets (`[]`). May be followed by a subexpression.
+*   **SubExpression:** A parameter list, consisting of identifiers, and the subexpression body which is an `assignable` element.
+*   **Pipeline:** A sequence of commands chained together using the pipe operator (`|>`).
+*   **Command:** A `COMMAND_NAME` followed by an optional list of arguments.
+*   **ArgumentList:** A sequence of `value` elements passed as arguments to a command.
+*   **Math Expression**: A mathematical expression involving identifiers, numbers, and operators
+
+#### Parse Trees
+
+We provide two parse trees to represent our grammar better:
+
+A simple transformation:
+```
+audioTrack |> volume 1.5
+
+```
+
+![parse tree 1](./resources/parse_tree_1.png)
+
+and a more complex one:
+```
+audioTrack = [stream, *]
+    |> crossfade 0.5
+    |> pitch 1.5
+```
+
+![parse tree 2](./resources/parse_tree_2.png)
+
+#### Complexity Analysis
+
+With 20 production rules, our grammar is of **Medium** complexity. It exhibits shallow recursion in `term` and `factor` for math expressions (up to 3 levels), and in assignable (2 levels). Our grammar defines a moderate number of token types, including nested structures like lists and pipelines. It's unambiguous, assuming correct precedence handling in the `mathExpr` rules.
+
+### 3. DSL Semantics
+
+*   **Program:** Execution begins at the first statement and proceeds sequentially.
+*   **Assignment:** The expression on the right-hand side is evaluated, and its result is bound to the identifier(s) on the left-hand side. If the `:=` operator is used, the identifier is declared within the current scope.
+*   **Expression:** The expression is evaluated, and its result may be used as input to a subsequent command or stored in the global `stream` variable.
+*   **Value:** Represents a data element.
+    *   `STRING`: A string literal.
+    *   `NUMBER`: A numerical literal (floating-point).
+    *   `BOOLEAN`: A boolean literal (`true` or `false`).
+    *   `SELF_STAR`: Refers to the value of the variable being assigned to.
+    *   `STREAM`: Refers to the global stream variable, representing the output of the last pipeline.
+    *   `IDENTIFIER`: Refers to the value bound to the identifier in the current scope.
+*   **List:** A collection of values. Lists can be used as arguments to commands or as input to pipelines.
+*   **SubExpression**: Binds the `identifierList` to the body, returning the value of the body with the identifiers in scope.
+*   **Pipeline:** Each command within the pipeline is executed in sequence. The output of one command becomes the input to the subsequent command. The final output of the pipeline is assigned to the global `stream` variable.
+*   **Command:** A function call with a specific name and a list of arguments. The semantics of each command (e.g., `open`, `volume`, `crossfade`) are defined by the underlying video/audio processing engine.
+*   **ArgumentList:** The arguments passed to a command. Argument types must match the expected types of the command's parameters.
+*   **Math Expression:** Evaluated according to standard mathematical precedence rules.
+
+#### Possible Errors and Constraints
+
+Several potential errors and constraints exist within our DSL:
+
+*   Type mismatches: Passing an argument of the wrong type to a command.
+*   Undefined identifiers: Referencing an identifier that has not been declared.
+*   Invalid file paths: Providing an invalid file path to the `open` command.
+*   Division by zero: Attempting to divide by zero in a mathematical expression.
+*   Incorrect number of arguments: Passing the wrong number of arguments to a command.
+*   Scope violations: Referencing an identifier that is not in the current scope.
+
+## Lexer Theory and Implementation
 
 ### What is a Lexer?
 
 A lexer (or lexical analyzer) is the first phase of a compiler or interpreter that converts a sequence of characters into a sequence of tokens. These tokens are meaningful chunks of the input that the parser can work with more easily. In our DSL for video processing (VidLang), the lexer plays a crucial role in identifying language constructs like variables, operators, commands, and literals.
-
-### Grammar Specification
-
-#### 1. Lexical Elements
-
-##### 1.1 Tokens
-
-```ebnf
-TOKEN ::= KEYWORD | IDENTIFIER | LITERAL | OPERATOR | DELIMITER | COMMENT
-```
-
-##### 1.2 Keywords
-
-```ebnf
-KEYWORD ::= 'stream' | '*'
-```
-
-##### 1.3 Commands
-
-```ebnf
-COMMAND ::= 'open' | 'volume' | 'pitch' | 'brightness' | 'contrast' | 'hue' 
-          | 'saturation' | 'speed' | 'cut' | 'fade' | 'crossfade' | 'concat'
-          | 'map' | 'trackline'
-```
-
-##### 1.4 Identifiers
-
-```ebnf
-IDENTIFIER ::= ALPHA (ALPHA | DIGIT)*
-ALPHA ::= 'a'...'z' | 'A'...'Z' | '_'
-DIGIT ::= '0'...'9'
-```
-
-##### 1.5 Literals
-
-```ebnf
-LITERAL ::= NUMBER | STRING
-NUMBER ::= ['+' | '-'] DIGIT+ ['.' DIGIT+]
-STRING ::= '"' CHARACTER* '"'
-CHARACTER ::= any-char-except-double-quote | '\"'
-```
-
-##### 1.6 Operators
-
-```ebnf
-OPERATOR ::= ARITHMETIC_OP | STREAM_OP | LIST_OP
-ARITHMETIC_OP ::= '+' | '-' | '*' | '/'
-STREAM_OP ::= '=' | ':=' | '|>'
-LIST_OP ::= '..'
-```
-
-##### 1.7 Delimiters
-
-```ebnf
-DELIMITER ::= '(' | ')' | '[' | ']' | ',' | NEWLINE
-NEWLINE ::= '\n'
-```
-
-##### 1.8 Comments
-
-```ebnf
-COMMENT ::= '#' any-char* NEWLINE
-```
-
-#### 2. Syntactic Structure
-
-##### 2.1 Program
-
-```ebnf
-Program ::= Statement*
-```
-
-##### 2.2 Statement
-
-```ebnf
-Statement ::= Declaration | Assignment | PipelineExpression | COMMENT
-```
-
-##### 2.3 Declaration
-
-```ebnf
-Declaration ::= IDENTIFIER [',' IDENTIFIER]* ':=' Expression
-```
-
-##### 2.4 Assignment
-
-```ebnf
-Assignment ::= IDENTIFIER '=' Expression
-```
-
-##### 2.5 Expression
-
-```ebnf
-Expression ::= PipelineExpression | ListExpression | CommandExpression | LiteralExpression | IdentifierExpression
-```
-
-##### 2.6 Pipeline Expression
-
-```ebnf
-PipelineExpression ::= Expression '|>' CommandExpression ['|>' CommandExpression]*
-```
-
-##### 2.7 List Expression
-
-```ebnf
-ListExpression ::= '[' [Expression [',' Expression]*] ']'
-```
-
-##### 2.8 Command Expression
-
-```ebnf
-CommandExpression ::= COMMAND [Expression]
-```
-
-##### 2.9 Literal Expression
-
-```ebnf
-LiteralExpression ::= LITERAL
-```
-
-##### 2.10 Identifier Expression
-
-```ebnf
-IdentifierExpression ::= IDENTIFIER | 'stream' | '*'
-```
-
-##### 2.11 Map Expression
-
-```ebnf
-MapExpression ::= 'map' '[' IDENTIFIER [',' IDENTIFIER]* ']' '(' Expression ')'
-```
-
-#### 3. Production Rules Count and Complexity Analysis
-
-- Number of Productions: 20 (Medium complexity)
-- Recursion Depth: Deep recursion (Expression can contain other expressions recursively)
-- Lexical Rules: 8 distinct token types (KEYWORD, COMMAND, IDENTIFIER, NUMBER, STRING, OPERATOR, DELIMITER, COMMENT)
-- Syntactic Rules: Complex with multiple nesting levels and alternative structures
-- Ambiguity: Potentially ambiguous, requiring disambiguation rules for operators
 
 ### State Machine Approach
 
@@ -776,7 +777,608 @@ func isStrOperator(s string) bool {
 
 These helper functions made the code more readable in places where I just needed to check if something was a command or operator without caring about the specific type.
 
-## Conclusion
+## Parser Theory and Implementation
+
+### What is a Parser?
+
+The parser takes the stream of tokens produced by the lexer and constructs an Abstract Syntax Tree (AST). The AST represents the grammatical structure of the input script, making it easier to analyze, optimize, and execute. In our VidLang DSL, the parser is responsible for recognizing language constructs like assignments, expressions, commands, and pipelines.
+
+### Recursive Descent Parsing
+
+We've implemented a recursive descent parser. This approach mirrors the grammar of the language directly in the code, with each non-terminal in the grammar having a corresponding parsing function.
+
+```go
+func (p *parser) parseCommand() nodeCommand { ... }
+func (p *parser) parseValue() nodeValue { ... }
+func (p *parser) parseAssignable() nodeValue { ... }
+```
+
+This direct mapping makes the parser relatively easy to understand and maintain. Each function is responsible for parsing a specific grammatical construct, and it calls other parsing functions to handle sub-constructs. Error handling can be localized to specific parsing functions, which simplifies debugging.
+
+I chose recursive descent because it's a good balance between simplicity and expressiveness. It's easier to implement and debug than more complex parsing algorithms like LR or LALR, while still being powerful enough to handle our DSL.
+
+### Parser Structure
+
+The parser maintains several fields to track its progress through the token stream and manage its state:
+
+```go
+type parser struct {
+	lex         *lexer         // lexer that produces tokens
+	expressions chan node        // channel for parsed expressions
+	currItem    item           // current item
+	peekItem    item           // next item
+	peek2Item   item           // item after next
+	identSet    map[string]*identifier // set of declared identifiers
+}
+```
+
+The `lex` field holds the lexer, which provides the stream of tokens. The `expressions` channel is where the parser sends the constructed AST nodes. The `currItem`, `peekItem`, and `peek2Item` fields allow the parser to look ahead in the token stream. This lookahead is crucial for making parsing decisions, such as distinguishing between assignments and expressions. The `identSet` map keeps track of declared identifiers and their types. This is used for semantic analysis, such as checking for duplicate declarations or type mismatches.
+
+I opted for a three-token lookahead (`currItem`, `peekItem`, `peek2Item`) because it was necessary to handle certain syntactic ambiguities in the language. For example, when encountering an identifier, we need to look at the next two tokens to determine if it's part of an assignment, an expression, or a command.
+
+The `expressions` channel is a critical part of the design. Like the lexer, the parser operates concurrently, sending parsed nodes through the channel. This allows for asynchronous processing of the script, potentially improving performance.
+
+### Node Types
+
+The parser constructs various types of nodes to represent the different language constructs:
+
+```go
+type nodeValue interface {
+	valueType() valueType
+	String() string
+}
+
+type nodeLiteralString string
+type nodeLiteralNumber float64
+type nodeLiteralBool bool
+type nodeIdent string
+type nodeSelfStar struct{ self string }
+type nodeSubExpr struct { body nodeValue; params nodeList[nodeIdent] }
+type nodeExprMath struct { left nodeValue; op itemType; right nodeValue }
+type nodeCommand struct { name string; args []nodeValue }
+type nodePipeline []nodeCommand
+type nodeExpr struct { input nodeList[nodeValue]; pipeline nodePipeline }
+type nodeAssign struct { dest nodeList[nodeIdent]; value nodeValue; define bool }
+```
+
+These node types represent the different values, expressions, commands, and control structures in VidLang. Each node type implements the `nodeValue` interface, which provides a common way to access the node's type and string representation.
+
+The `nodeExpr` type represents a complete expression, including its input (which can be a list of values) and its pipeline of commands. The `nodeAssign` type represents an assignment statement, including the destination variables, the assigned value, and whether the assignment is a declaration.
+
+I put a lot of thought into the design of these node types. They need to be expressive enough to represent all the language constructs, while also being simple enough to be easily manipulated by subsequent compiler passes.
+
+### Running the Parser
+
+The `parse` function initializes the parser and starts the parsing process in a goroutine:
+
+```go
+func parse(input string) *parser {
+	p := &parser{
+		lex:         lex(input),
+		expressions: make(chan node),
+		identSet:    make(map[string]*identifier),
+	}
+	p.currItem = <-p.lex.items
+	p.peekItem = <-p.lex.items
+	p.peek2Item = <-p.lex.items
+	go p.run()
+	return p
+}
+```
+
+The `parse` function creates a new parser, initializes its fields, and starts the `run` method in a goroutine. The `run` method consumes tokens from the lexer and constructs the AST.
+
+The initial consumption of three items from the lexer channel primes the lookahead buffer. The `run` method is the main loop of the parser, processing tokens until it encounters an EOF token.
+
+### Main Parsing Loop
+
+The `run` method is the heart of the parser:
+
+```go
+func (p *parser) run() {
+	for {
+		p.nextItem()
+		switch p.currItem.typ {
+		case itemEOF:
+			close(p.expressions)
+			return
+		case itemIdentifier:
+			// Check for assignment-like conditions
+			switch p.peekItem.typ {
+			case itemAssign, itemDeclare, itemComma:
+				p.expressions <- p.parseAssignment()
+			case itemPipe:
+				p.expressions <- p.parseAssignable()
+			}
+		case itemLeftBrace, itemNumber, itemString, itemBool:
+			p.expressions <- p.parseAssignable()
+		default:
+			if p.currItem.typ > itemCommand {
+				p.expressions <- p.parseAssignable()
+			} else {
+			}
+		}
+	}
+}
+```
+
+The `run` method iterates through the token stream, dispatching to different parsing functions based on the current token type. The lookahead is crucial for deciding which parsing function to call. For example, if the current token is an identifier and the next token is an assignment operator or a declaration operator, then the parser calls the `parseAssignment` function. Otherwise, it calls the `parseAssignable` function.
+
+The `parseAssignable` function handles values and expressions that can be assigned to variables or used as inputs to pipelines.
+
+### Parsing Functions
+
+The parser includes several parsing functions, each responsible for parsing a specific grammatical construct:
+
+#### Assignments
+
+```go
+func (p *parser) parseAssignment() nodeAssign {
+	var node nodeAssign
+
+	node.dest = p.parseIdentList()
+
+	if p.currItem.typ == itemDeclare {
+		node.define = true
+	} else if p.currItem.typ != itemAssign {
+		p.errorf("expected assignment or declaration, got %s", p.peekItem)
+	}
+
+	p.nextItem()
+
+	for p.currItem.typ == itemNewline {
+		p.nextItem()
+	}
+
+	node.value = p.parseAssignable()
+
+	return node
+}
+```
+
+The `parseAssignment` function parses assignment statements, including both variable declarations and regular assignments. It first parses the list of destination variables using the `parseIdentList` function. Then, it checks whether the assignment is a declaration (using the `:=` operator) or a regular assignment (using the `=` operator). Finally, it parses the assigned value using the `parseAssignable` function.
+
+The function handles newlines between the assignment operator and the assigned value, which allows for multi-line assignments.
+
+#### Identifiers Lists
+
+```go
+func (p *parser) parseIdentList() nodeList[nodeIdent] {
+	var idents nodeList[nodeIdent]
+	for p.currItem.typ == itemIdentifier {
+
+		idents = append(idents, nodeIdent(p.currItem.val))
+		p.nextItem()
+
+		if p.currItem.typ == itemComma {
+			p.nextItem()
+		}
+
+	}
+	return idents
+}
+```
+
+The `parseIdentList` function parses a list of identifiers separated by commas. This is used in assignment statements to assign values to multiple variables at once.
+
+#### Values
+
+```go
+func (p *parser) parseValue() nodeValue {
+	assert(validValues[p.currItem.typ],
+		"parseValue should be invoked with currItem at a simple value, list or subexpression got %s",
+		p.currItem)
+
+	var n nodeValue
+
+	if p.currItem.typ == itemLeftBrace {
+		n = p.parseSimpleValueList()
+		assert(
+			p.currItem.typ == itemRightBrace, "assumed that the list was terminated successfully by a right brace, but got %s -> %s", p.currItem, p.peekItem)
+		if p.peekItem.typ == itemLeftParen {
+			n = p.parseSubExpr(n)
+		}
+	} else if (p.currItem.typ == itemNumber || p.currItem.typ == itemLeftParen) && p.peekItem.typ == mathSymbols[p.peekItem.val] {
+		n = p.parseMathExpression()
+	} else {
+		n = p.parseSimpleValue()
+	}
+
+	return n
+}
+```
+
+The `parseValue` function is responsible for parsing simple values, lists, and subexpressions. It uses the `validValues` map to check whether the current token is a valid value.
+
+If the current token is a left brace, then the parser calls the `parseSimpleValueList` function to parse a list of values. If the current token is a number or a left parenthesis, and the next token is a mathematical operator, then the parser calls the `parseMathExpression` function to parse a mathematical expression. Otherwise, the parser calls the `parseSimpleValue` function to parse a simple value (such as a number, string, or identifier).
+
+If a `subExpr` is the next item, continue parsing for that
+
+#### Assignable
+
+```go
+func (p *parser) parseAssignable() nodeValue {
+	assert(validValues[p.currItem.typ] || p.currItem.typ > itemCommand,
+		"parseValue should be invoked with currItem at a simple value, list, subexpression or command, got %s",
+		p.currItem)
+
+	var n nodeValue
+
+	if validValues[p.currItem.typ] {
+		n = p.parseValue()
+
+		if p.peekItem.typ == itemNewline && p.peek2Item.typ == itemPipe {
+			p.nextItem()
+		}
+
+		if p.peekItem.typ == itemPipe { // TODO:
+			p.nextItem()
+		}
+
+		if p.currItem.typ == itemPipe {
+			p.nextItem()
+			if n.valueType() != valueList {
+				n = nodeList[nodeValue]{n}
+			}
+			n = nodeExpr{input: n.(nodeList[nodeValue]), pipeline: p.parsePipeline()}
+		}
+	} else if p.currItem.typ > itemCommand {
+		n = nodeExpr{pipeline: p.parsePipeline(), input: nil}
+	}
+
+	return n
+}
+```
+
+The `parseAssignable` function is responsible for parsing values that can be assigned to variables or used as inputs to pipelines. It first parses a value using the `parseValue` function. Then, it checks whether the next token is a pipe operator (`|>`). If it is, then the parser calls the `parsePipeline` function to parse a pipeline of commands.
+
+#### Subexpressions
+
+```go
+func (p *parser) parseSubExpr(v nodeValue) nodeSubExpr {
+
+	assert(v.valueType() == valueList,
+		"parseSubExpr's argument is assumed to be a list, but got %s", p.currItem)
+
+	argList := make(nodeList[nodeIdent], 0)
+	for _, arg := range v.(nodeList[nodeValue]) {
+		if arg.valueType() != valueIdentifier {
+			p.errorf("a subexpression's argument list must be a list of identifiers, but got %s", arg)
+		}
+		argList = append(argList, arg.(nodeIdent))
+	}
+
+	var n nodeSubExpr
+	n.params = argList
+
+	p.nextItem()
+	n.body = p.parseSubExprBody()
+
+	return n
+}
+
+// TODO hangle empty body case `()`
+func (p *parser) parseSubExprBody() nodeValue {
+	assert(p.currItem.typ == itemLeftParen,
+		"parseSubExprBody should be invoked with currItem at left paren (the beginning of its body), got %s",
+		p.currItem)
+	p.nextItem()
+
+	n := p.parseAssignable()
+	// TODO: This is a temporary fix! Very bad should be done something else
+	if p.currItem.typ != itemRightParen {
+		p.nextItem()
+	}
+
+	if p.currItem.typ != itemRightParen {
+		p.errorf("expected right paren at the end of subexpression body, got %s -> %s", p.currItem, p.peekItem)
+	}
+	//p.nextItem()
+
+	return n
+}
+```
+
+The `parseSubExpr` and `parseSubExprBody` functions are responsible for parsing subexpressions, which are anonymous functions that can be passed as arguments to commands. A subexpression consists of a list of parameter names enclosed in square brackets, followed by an expression enclosed in parentheses.
+
+#### Pipelines
+
+```go
+func (p *parser) parsePipeline() nodePipeline {
+	node := make(nodePipeline, 0)
+
+	assert(p.currItem.typ > itemCommand,
+		"parsePipeline should be invoked with currItem at a command, got %s", p.currItem)
+
+	for p.currItem.typ > itemCommand {
+
+		node = append(node, p.parseCommand())
+		if p.peekItem.typ == itemNewline && p.peek2Item.typ == itemPipe {
+			p.nextItem()
+		}
+		if p.peekItem.typ != itemPipe {
+			break
+		}
+		p.nextItem()
+		if p.peekItem.typ < itemCommand {
+			p.errorf("expected command after pipe, got %s", p.peekItem)
+		}
+		p.nextItem()
+	}
+
+	return node
+}
+```
+
+The `parsePipeline` function parses a pipeline of commands, which are chained together using the pipe operator (`|>`). Each command in the pipeline is parsed using the `parseCommand` function.
+
+#### Commands
+
+```go
+func (p *parser) parseCommand() nodeCommand {
+	var node nodeCommand
+	node.name = p.currItem.val
+	node.args = make([]nodeValue, 0)
+	for validArgs[p.peekItem.typ] && p.peekItem.typ != itemNewline {
+		p.nextItem()
+		assert(
+			validArgs[p.currItem.typ],
+			"parseCommand's loop should be entered with a valid arg, but got %s",
+			p.currItem)
+		assert(
+			p.currItem.typ != itemNewline,
+			"parseCommand's loop should not process newlines",
+		)
+		node.args = append(node.args, p.parseValue())
+	}
+	return node
+}
+```
+
+The `parseCommand` function parses a command, including its name and arguments. The command name is the current token. The arguments are parsed using the `parseValue` function and are appended to the command's argument list.
+
+#### Simple Value Lists
+
+```go
+func (p *parser) parseSimpleValueList() nodeList[nodeValue] {
+	list := make(nodeList[nodeValue], 0)
+	assert(p.currItem.typ == itemLeftBrace, "parseSimpleValueList should be invoked with currItem at left brace, got %s", p.currItem)
+	for p.currItem.typ != itemRightBrace {
+		p.nextItem()
+		list = append(list, p.parseSimpleValue())
+		p.nextItem()
+		if p.currItem.typ != itemComma {
+			if p.currItem.typ != itemRightBrace {
+				p.errorf("list not terminated properly, expected comma or right brace, got %s", p.currItem)
+			}
+			break
+		}
+	}
+	assert(
+		p.currItem.typ == itemRightBrace,
+		"it was assumed that the list was terminated by a right brace but got %s -> %s", p.currItem, p.peekItem)
+	return list
+}
+```
+
+The `parseSimpleValueList` function parses a list of simple values enclosed in square brackets. The values are separated by commas.
+
+#### Simple Values
+
+```go
+func (p *parser) parseSimpleValue() nodeValue {
+	assert(
+		validValues[p.currItem.typ],
+		"parseSimpleValue should be invoked with a valid value, but got %s", p.currItem,
+	)
+	var n nodeValue
+	switch p.currItem.typ {
+	case itemIdentifier, itemSelfStar, itemStream:
+		n = nodeIdent(p.currItem.val)
+	case itemNumber:
+		n = nodeLiteralNumber(strToLiteralNumber(p.currItem.val))
+	case itemBool:
+		n = nodeLiteralBool(strToLiteralBool(p.currItem.val))
+	case itemString:
+		n = nodeLiteralString(p.currItem.val)
+	default:
+		p.errorf("parseSimpleValue should be invoked with a valid value, but got %s", p.currItem)
+	}
+	//p.nextItem()
+	return n
+}
+```
+
+The `parseSimpleValue` function parses a simple value, such as a number, string, identifier, boolean, or self-star reference.
+
+#### Math Expressions
+
+```go
+func (p *parser) parseMathExpression() nodeValue {
+	return p.parseTerm()
+}
+
+func (p *parser) parseTerm() nodeValue {
+	node := p.parseFactor()
+	for p.currItem.typ == itemPlus || p.currItem.typ == itemMinus {
+		op := p.currItem.typ
+		p.nextItem()
+		node = nodeExprMath{left: node, op: op, right: p.parseFactor()}
+	}
+	return node
+}
+
+func (p *parser) parseFactor() nodeValue {
+	node := p.parsePrimary()
+	for p.currItem.typ == itemMult || p.currItem.typ == itemDiv {
+		op := p.currItem.typ
+		p.nextItem()
+		node = nodeExprMath{left: node, op: op, right: p.parsePrimary()}
+	}
+	return node
+}
+
+func (p *parser) parsePrimary() nodeValue {
+	switch p.currItem.typ {
+	case itemIdentifier:
+		node := nodeIdent(p.currItem.val)
+		p.nextItem()
+		return node
+	case itemNumber:
+		node := strToLiteralNumber(p.currItem.val)
+		p.nextItem()
+		return node
+	case itemLeftParen:
+		p.nextItem()
+		node := p.parseMathExpression()
+		if p.currItem.typ != itemRightParen {
+			p.errorf("missing closing parenthesis")
+		}
+		p.nextItem()
+		return node
+	default:
+		p.errorf("unexpected token in expression %s", p.currItem)
+		return nil
+	}
+}
+```
+
+The `parseMathExpression`, `parseTerm`, `parseFactor`, and `parsePrimary` functions are responsible for parsing mathematical expressions. These functions implement a standard recursive descent parser for arithmetic expressions with operator precedence.
+
+### Helper Functions
+
+The parser includes several helper functions:
+
+```go
+// nextItem advances the parser to the next token, and sets the peekItem
+func (p *parser) nextItem() {
+	if p.currItem.typ == itemError {
+		p.errorf("lexical error: %s", p.currItem.val)
+	}
+	p.currItem = p.peekItem
+	p.peekItem = p.peek2Item
+	p.peek2Item = <-p.lex.items
+
+}
+```
+
+The `nextItem` function advances the parser to the next token in the stream. It also handles lexical errors by calling the `errorf` function.
+
+```go
+func (p *parser) errorf(format string, args ...any) {
+	err := fmt.Errorf(format, args...)
+	panic(err)
+}
+```
+
+The `errorf` function reports a parsing error and halts the parsing process. It formats the error message using the provided format string and arguments, and then panics.
+
+```go
+func assert(condition bool, msg string, args ...any) {
+	if !condition {
+		panic(fmt.Errorf("assertion failed: "+msg, args...))
+	}
+}
+```
+
+The `assert` function checks a condition and panics if the condition is false. This is used for internal consistency checks in the parser.
+
+## Code Example and Output
+
+Let's examine how the parser processes the same VidLang script as in the lexer section:
+
+```go
+func main() {
+    testScript := `
+#!/bin/venv vidlang
+videoTrack, audioTrack := open "video.mp4"
+introVid, introAud := open "intro.mp4"
+outro, outroAud := open "outro.mp4"
+audioTrack |> volume 1.5
+# stream is a global variable representing the latest pipeline result
+audioTrack = [stream, *]
+    |> crossfade 0.5
+    |> pitch 1.5
+videoTrack =*
+    |> brightness 1.3
+    |> contrast 1.1
+sequence := [introAud, audioTrack, outroAud]
+    |> map [i, el] ( el |> volume 0.5*i+1 )
+trackline [intoVid, videoTrack, outro] sequence
+export "final.mp4"
+`
+    p := parse(testScript)
+    for node := range p.expressions {
+        printNode(node)
+    }
+}
+```
+
+This script demonstrates many of the language features: variable declarations, function calls, pipelines, self-references, and comments. The parser will transform it into a series of AST nodes.
+
+When running this example, you'll see each node printed with its type and value information. This output is invaluable for debugging the parser itself and understanding how the language is interpreted.
+
+The generated output would consist of the printed representation of the parsed nodes, for example:
+```
+main.nodeAssign{dest:main.nodeList[main.nodeIdent]{[]main.nodeIdent{main.nodeIdent("videoTrack"), main.nodeIdent("audioTrack")}, 2}, value:main.nodeExpr{input:nil, pipeline:main.nodePipeline{main.nodeCommand{name:"open", args:[]main.nodeValue{main.nodeLiteralString("video.mp4")}}}}, define:true}
+main.nodeAssign{dest:main.nodeList[main.nodeIdent]{[]main.nodeIdent{main.nodeIdent("introVid"), main.nodeIdent("introAud")}, 2}, value:main.nodeExpr{input:nil, pipeline:main.nodePipeline{main.nodeCommand{name:"open", args:[]main.nodeValue{main.nodeLiteralString("intro.mp4")}}}}, define:true}
+...
+```
+
+## Design Considerations
+
+### Three-Token Lookahead
+
+The parser uses a three-token lookahead to handle syntactic ambiguities:
+
+```go
+type parser struct {
+	lex         *lexer
+	expressions chan node
+	currItem    item
+	peekItem    item
+	peek2Item   item
+	identSet    map[string]*identifier
+}
+```
+
+The three-token lookahead is essential for distinguishing between different language constructs. For example, when encountering an identifier, we need to look at the next two tokens to determine if it's part of an assignment, an expression, or a command.
+
+### Concurrent Operation
+
+The parser operates concurrently with the lexer, using a channel to receive tokens:
+
+```go
+func parse(input string) *parser {
+	p := &parser{
+		lex:         lex(input),
+		expressions: make(chan node),
+		identSet:    make(map[string]*identifier),
+	}
+	p.currItem = <-p.lex.items
+	p.peekItem = <-p.lex.items
+	p.peek2Item = <-p.lex.items
+	go p.run()
+	return p
+}
+```
+
+This allows the parser to process tokens as they are produced by the lexer, potentially improving performance.
+
+### Error Handling
+
+The parser includes error handling with detailed error messages:
+
+```go
+func (p *parser) errorf(format string, args ...any) {
+	err := fmt.Errorf(format, args...)
+	panic(err)
+}
+```
+
+The `errorf` function reports a parsing error and halts the parsing process. The error message includes the current token and the expected token, which helps the user identify the location and cause of the error.
+
+## Conclusions
 
 The lexer implementation for our VidLang DSL demonstrates several important principles of lexical analysis:
 
@@ -793,3 +1395,19 @@ I found Rob Pike's state function approach to be remarkably elegant and well-sui
 The lexer forms the foundation of our VidLang compiler, converting raw text into a stream of tokens that the parser can assemble into meaningful operations. The next step would be implementing the parser, which will transform these tokens into an abstract syntax tree representing the structure and semantics of the program.
 
 One thing I've learned through this implementation is that seemingly small design decisions in the lexer can have significant impacts on the overall language experience. By carefully designing the token types and lexing rules, we've created a foundation that makes the rest of the compiler simpler and more robust.
+
+The parser implementation for our VidLang DSL demonstrates several important principles of parsing:
+
+1. **Recursive Descent Parsing**: Using a recursive descent parser makes the code easier to understand and maintain.
+
+2. **Lookahead**: Using a three-token lookahead allows the parser to handle syntactic ambiguities.
+
+3. **Concurrent Operation**: Operating concurrently with the lexer can improve performance.
+
+4. **Error Handling**: Including detailed error messages helps the user identify and fix parsing errors.
+
+The parser transforms the stream of tokens produced by the lexer into an AST, which represents the grammatical structure of the input script. This AST can then be used for further analysis, optimization, and execution.
+
+One area for future improvement is to add more sophisticated error recovery mechanisms. Currently, the parser halts on the first error. It would be better to try to recover from errors and continue parsing, so that the user can see all the errors in the script at once.
+
+Another area for future improvement is to add semantic analysis to the parser. Currently, the parser only checks the syntax of the script. It would be beneficial to also check the semantics, such as type checking and variable declaration checking and do type inference.

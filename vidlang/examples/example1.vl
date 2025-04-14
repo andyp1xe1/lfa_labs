@@ -1,0 +1,27 @@
+#!/bin/venv vidlang
+
+a := [ "a.mp4", "b.mp4" ]
+
+newCommand := [test1, test2] (trackline [test1, test2])
+
+videoTrack, audioTrack := open "video.mp4"
+introVid, introAud := open "intro.mp4"
+outro, outroAud := open "outro.mp4"
+audioTrack |> volume 1.5
+
+# stream is a global variable representing the latest pipeline result
+
+audioTrack = [stream, *]
+		|> crossfade 0.5
+		|> pitch 1.5
+
+videoTrack =*
+    |> brightness 1.3
+    |> contrast 1.1
+
+audSequence := [introAud, audioTrack, outroAud]
+    |> map [i, el] ( el |> volume 0.5*i+1 )
+vidSequence :=  [intoVid, videoTrack, outro]
+trackline audSequence vidSequence
+# or trackline audSequence [introVid, videoTrack, outro]
+export "final.mp4"
