@@ -288,7 +288,33 @@ The tests confirm that:
 
 ### Results
 
-The implementation successfully parses regular expressions and constructs equivalent NFAs. The generated random words are consistently accepted by both the constructed NFA and the reference regex implementation, confirming the correctness of the conversion.
+### Regex Processing Visualization
+
+To better understand the regex-to-NFA conversion process, I implemented a visualization of Thompson's construction algorithm. The implementation shows the step-by-step process of converting a regex pattern to an NFA:
+
+1. **Thompson's Construction Steps**: For each regex pattern, the program shows:
+   - Creation of basic NFAs for individual characters
+   - Building subexpression NFAs for parenthesized groups
+   - Application of quantifiers (* + ? {n})
+   - Construction of alternation NFAs with epsilon transitions
+   - Concatenation of NFAs via epsilon transitions
+
+2. **Visual Representation**: The resulting NFA is converted to DOT format and rendered as a graph, showing:
+   - States (including start and accepting states)
+   - Transitions (labeled with their symbols)
+   - Epsilon transitions (showing the Thompson construction patterns)
+
+3. **Validation**: The implementation generates sample strings accepted by each regex to verify correctness.
+
+This visualization helps illustrate how Thompson's construction systematically converts regular expressions to NFAs by breaking down the process into elementary operations. Each operation in the algorithm produces a well-defined NFA structure, and these structures are combined to create the final automaton that recognizes the entire pattern.
+
+For example, with the pattern `a(b|c)*d`:
+- Basic NFAs are created for characters 'a', 'b', 'c', and 'd'
+- An alternation NFA is built for '(b|c)' with epsilon transitions
+- The Kleene star (*) is applied to create loops with epsilon transitions
+- The NFAs are concatenated in sequence to form the final automaton
+
+The implementation demonstrates how formal language theory connects regular expressions and finite automata, providing a practical way to visualize the transformation between these equivalent representations.
 
 For visualization, the NFA can be converted to DOT format and rendered as a graph:
 
