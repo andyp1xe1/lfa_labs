@@ -62,7 +62,11 @@ func (n *NFA) ToDOT(filename string) error {
 	for state, transitions := range n.Delta {
 		for symbol, nextStates := range transitions {
 			for nextState := range nextStates {
-				fmt.Fprintf(file, "  \"%s\" -> \"%s\" [label=\"%c\"];\n", state, nextState, symbol)
+				label := string(symbol)
+				if symbol == Epsilon {
+					label = "ε"
+				}
+				fmt.Fprintf(file, "  \"%s\" -> \"%s\" [label=\"%s\"];\n", state, nextState, label)
 			}
 		}
 	}

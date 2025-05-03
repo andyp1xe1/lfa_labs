@@ -16,7 +16,7 @@ func TestRegexGenWords(t *testing.T) {
 			pattern: "(a|b)(c|d)E+G?",
 		},
 		{
-			name:    "Pattern 2: P(Q|R|S)T(U|V|W|X)*Z+",
+			name:    "Pattern 2: P(Q|R|S)T(UV|W|X)*Z+",
 			pattern: "P(Q|R|S)T(U|V|W|X)*Z+",
 		},
 		{
