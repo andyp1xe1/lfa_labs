@@ -508,12 +508,6 @@ After eliminating unit productions (renaming), the grammar is transformed to:
 ### Step 3: Eliminate Inaccessible Symbols
 
 After eliminating inaccessible symbols, the grammar is transformed to:
-- S → dB | d | dS | aBdB
-- A → d | dS | aBdB
-- B → a | aS | d | dS | aBdB | aBdB
-- C → bC | b
-
-Note that D is removed because it's not reachable from the start symbol S.
 
 ![Grammar After Inaccessible Symbols Elimination](grammar_viz/4_no_inaccessible.png)
 
