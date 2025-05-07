@@ -1,4 +1,4 @@
-# Laboratory work 6
+# Laboratory Work 6: Parser & Building an Abstract Syntax Tree
 
 ## Parser Theory and Implementation
 
