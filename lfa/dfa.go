@@ -69,12 +69,12 @@ func (d *DFA) Accept(s string) bool {
 		symbol := byte(char)
 
 		if !contains(d.Sigma, symbol) {
-			log.Printf("Symbol %v not in Sigma", symbol)
+			// log.Printf("Symbol %v not in Sigma", symbol)
 			return false
 		}
 
 		if m := d.Delta.LookupQ(q); m == nil {
-			log.Printf("State %s does not have outgoing transitions", q)
+			// log.Printf("State %s does not have outgoing transitions", q)
 			return false
 		}
 
